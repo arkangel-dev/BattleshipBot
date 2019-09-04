@@ -15,7 +15,7 @@
 #define SHIPTYPE_FRIGATE	"1"
 #define SHIPTYPE_SUBMARINE	"2"
 
-#define STUDENT_NUMBER		"Titan_[Betolt]_G2"
+#define STUDENT_NUMBER		"Titan_[Bertolt]"
 #define STUDENT_FIRSTNAME	"Sam"
 #define STUDENT_FAMILYNAME	"Ramirez"
 #define MY_SHIP	SHIPTYPE_BATTLESHIP
@@ -111,12 +111,46 @@ int enemyType[MAX_SHIPS];
 // My variables...
 int current_patrol_point = 0;
 int current_opcode = -1;
+int friendlyFlag = 5005;
+int commanderFlag = 5006;
+int tele_currentship = 0;
+bool tele_operating = false;
+char friendList[][64] = {"Titan_[Bertolt]", "Titan_[Zeke]"};
 
+
+// what this function does is check if there is qeue to send
+// telemetry data, and if there are, send it one by one... 
+// one will be sent per tick...
+void broadcastTelemetry_OP() {
+	int friendListSize = sizeof(friendList) / sizeof(*friendList);
+	if (tele_operating) {
+		if (tele_currentship != friendListSize ) {
+			char temp_ship[64];
+			strcpy_s(temp_ship, friendList[tele_currentship]);
+			send_message(temp_ship, STUDENT_NUMBER, "LOCATION 20 20");
+			tele_currentship++;
+		} else {
+			tele_operating = false;
+			tele_currentship = 0;
+		}
+	}
+
+}
+
+// what this function does is send the status
+// of the ship to all the ships in the friendList array
+// object
+void broadcastTelemetry() {
+
+	if (!tele_operating) {
+		tele_operating = true;
+	}
+}
 
 bool IsaFriend(int index) {
 	bool rc;
 	rc = false;
-	if (shipFlag[index] == 123) {
+	if (shipFlag[index] == friendlyFlag) {
 		rc = true;
 	}
 	return rc;
@@ -145,17 +179,6 @@ void moveTowards(int enemyx, int enemyy) {
 	basey = basey * 1;
 	move_in_direction(basex, basey);
 }
-
-//// What this function does is calculate the square root of the value that is passed on to it as a parameter.
-//// This function will be mostly used to calcuate the euclidian distance between ships.
-//int sqrt(float number) {
-//	int squareroot = 0;
-//	while (squareroot * squareroot < number) {
-//		squareroot += 1;
-//	}
-//	if (squareroot * squareroot != number) --squareroot;
-//	return squareroot;
-//}
 
 // this function is part of the default code in the provided solution.
 // It just randomly moves accross the plane untill it hits an edge and
@@ -269,7 +292,7 @@ int getWeakestEnemy() {
 	int weakest_value = 11;
 	for (int i = 1; i < number_of_ships; i++) {
 		int index = i;
-		if (shipFlag[index] != 5005) { // check if the ship is not a friendly
+		if (shipFlag[index] != friendlyFlag) { // check if the ship is not a friendly
 			if (shipHealth[index] < weakest_value) {
 				weakest_index = index;
 				weakest_value = shipHealth[index];
@@ -373,7 +396,7 @@ void conditionCheck() {
 int countFriendlies() {
 	int friendCount = -1;
 	for (int i = 0; i < number_of_ships; i++) {
-		if ((shipFlag[i] == 5005) || shipFlag[i] == 5006) {
+		if ((shipFlag[i] == friendlyFlag) || shipFlag[i] == commanderFlag) {
 			friendCount++;
 		}
 	}
@@ -385,7 +408,7 @@ int countFriendlies() {
 int getMasterIndex() {
 	int index = -1;
 	for (int i = 0; i < number_of_ships; i++) {
-		if (shipFlag[i] == 5006) {
+		if (shipFlag[i] == commanderFlag) {
 			index = i;
 		}
 
@@ -398,7 +421,7 @@ int getMasterIndex() {
 int countEnemies() {
 	int enemy_count = 0;
 	for (int i = 0; i < number_of_ships; i++) {
-		if ((shipFlag[i] != 5005) && (shipFlag[i] != 5006)) {
+		if ((shipFlag[i] != friendlyFlag) && (shipFlag[i] != commanderFlag)) {
 			enemy_count++;
 		}
 	}
@@ -412,7 +435,7 @@ int getNearestEnemy() {
 	int nearest_value = 99999;
 	for (int i = 1; i < number_of_ships; i++) {
 		int index = i;
-		if ((shipFlag[i] != 5005) && (shipFlag[i] != 5006)) {
+		if ((shipFlag[i] != friendlyFlag) && (shipFlag[i] != commanderFlag)) {
 			if (getDistance(index) < nearest_value) {
 				nearest_index = index;
 				nearest_value = getDistance(index);
@@ -449,15 +472,25 @@ void convergeToBase() {
 //   MY FUNCTIONS END HERE
 //   =====================
 
+// in here are the functions that will be have to be executed
+// on every tick, to make sure that the code is synchronous
+// with the testing server...
+void routineFunctions() {
+	broadcastTelemetry_OP();
+}
 
+bool flipperr = true;
 void tactics() {
-	//send_message("Titan_[Betolt]_G2", "Arkangel", "LOCATION 20 30");
+	broadcastTelemetry();
+	routineFunctions();
 }
 
 /*************************************************************/
 /********* Your tactics code ends here ***********************/
 /*************************************************************/
 
+// Print out the contents of the ascii.txt file to the console...
+// For aesthetic affects...
 void outputHeader() {
 	std::ifstream f("ascii.txt");
 	if (f.is_open())

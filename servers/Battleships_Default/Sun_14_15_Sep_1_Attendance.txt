@@ -1,0 +1,8 @@
+Marks_24,  XXX,   XXX,   ,    1402,    24,    0
+Hit_Run_,  XXX,   XXX,   ,   -76,    17,    2
+Rand_Hit,  XXX,   XXX,   ,   -2007,    9,    1
+Marks_00,  XXX,   XXX,   ,   -4005,    0,    0
+Pack_01,  XXX,   XXX,   ,    978,    22,    0
+Pack_02,  XXX,   XXX,   ,    1191,    23,    0
+Pack_03,  XXX,   XXX,   ,    418,    20,    1
+Titan_[Bertolt],  Ramirez,   Sam,   127.0.0.1,    2099,    60,    0

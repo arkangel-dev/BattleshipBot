@@ -115,7 +115,7 @@ int friendlyFlag = 5005;
 int commanderFlag = 5006;
 int tele_currentship = 0;
 bool tele_operating = false;
-char friendList[][64] = {"Titan_[Zeke]"};
+char friendList[][64] = {"Titan_[Bertolt]", "Titan_[Zeke]"};
 
 
 // what this function does is check if there is qeue to send
@@ -153,7 +153,7 @@ void broadcastTelemetry() {
 bool IsaFriend(int index) {
 	bool rc;
 	rc = false;
-	if (shipFlag[index] == friendlyFlag) {
+	if ((shipFlag[index] == friendlyFlag) || (shipFlag[index] == commanderFlag)) {
 		rc = true;
 	}
 	return rc;
@@ -195,13 +195,29 @@ void idleRandom() {
 }
 
 // idk what the hell this function does... it was provided in the original code...
+// TODO : Clean up this function...
 void messageReceived(char* msg) {
 	int X;
 	int Y;
-	printf("%s\n", msg);
-	if (sscanf_s(msg, "%*s %*s %*s LOCATION %d %d", &X, &Y) == 2) {
-		printf("Friendly Ship Transponder : %d %d\n", X, Y);
+	int flag;
+	int health;
+	char operation_op[32];
+
+	if (sscanf_s(msg, "%*s %*s %*s %s", &operation_op, _countof(operation_op)) == 1) {
+		printf("Incoming Message : TOPIC : %s\n", operation_op);
+		if (strcmp(operation_op,"TELEMETRY") == 0) {
+			if (sscanf_s(msg, "%*s %*s %*s TELEMETRY %d %d %d %d", &X, &Y, &flag, &health) == 4) {
+				printf("Friendly Ship Telemetry Data : \n\tX : %d \n\tY : %d \n\tFlag : %d \n\tHealth : %d\n\n", X, Y, flag, health);
+			} else {
+				printf("Failed to parse telemetry data.\n");
+			}
+		} else {
+			printf("Unknown topic.\n");
+		}
+	} else {
+		printf("Failed to parse message.\n");
 	}
+
 }
 
 // what this function does is move towards a co-ordinate...
@@ -305,8 +321,6 @@ int getWeakestEnemy() {
 	return weakest_index;
 }
 
-
-
 // what this function does is accept an X and Y co-ordinate and
 // a radius value and return the number of ships in that range...
 int countShipsInRadius(int xIn, int yIn, int Radius) {
@@ -401,7 +415,7 @@ void conditionCheck() {
 int countFriendlies() {
 	int friendCount = -1;
 	for (int i = 0; i < number_of_ships; i++) {
-		if ((shipFlag[i] == friendlyFlag) || shipFlag[i] == commanderFlag) {
+		if (IsaFriend(i)) {
 			friendCount++;
 		}
 	}
@@ -481,10 +495,11 @@ void convergeToBase() {
 // with the testing server...
 void routineFunctions() {
 	broadcastTelemetry_OP();
-	escape_OP();
 }
 
 void tactics() { 
+	broadcastTelemetry();
+	routineFunctions();
 }
 
 /*************************************************************/

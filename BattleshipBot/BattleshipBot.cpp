@@ -115,7 +115,7 @@ int friendlyFlag = 5005;
 int commanderFlag = 5006;
 int tele_currentship = 0;
 bool tele_operating = false;
-char friendList[][64] = {"Titan_[Bertolt]", "Titan_[Zeke]"};
+char friendList[][64] = {"Titan_[Zeke]"};
 
 
 // what this function does is check if there is qeue to send
@@ -127,14 +127,15 @@ void broadcastTelemetry_OP() {
 		if (tele_currentship != friendListSize ) {
 			char temp_ship[64];
 			strcpy_s(temp_ship, friendList[tele_currentship]);
-			send_message(temp_ship, STUDENT_NUMBER, "LOCATION 20 20");
+			char telemetryData[100]; 
+			sprintf_s(telemetryData, "TELEMETRY %d %d %d %d", myX, myY, myFlag, myHealth);
+			send_message(temp_ship, STUDENT_NUMBER, telemetryData);
 			tele_currentship++;
 		} else {
 			tele_operating = false;
 			tele_currentship = 0;
 		}
 	}
-
 }
 
 // what this function does is send the status
@@ -147,6 +148,8 @@ void broadcastTelemetry() {
 	}
 }
 
+// what this function does is accept an index
+// of a ship and determine if the ship is a friendly
 bool IsaFriend(int index) {
 	bool rc;
 	rc = false;
@@ -281,7 +284,7 @@ void patrol_path() {
 
 	// what this part does is move
 	// the ship to the next point based
-	// on the current_patrol_point variable
+	// on the current_patrol_point variabl
 	moveTowards(pathways[current_patrol_point][0], pathways[current_patrol_point][1]);
 }
 
@@ -347,11 +350,13 @@ void escapeFrom(int xin, int yin, int iterations) {
 
 // the normal routine will be overwritten by this
 // function when the ship encounters a cluster...
-void escape() {
-	moveAway(escapex, escapey);
-	escapeiteration--;
-	if (escapeiteration <= 0) {
-		escaping = false;
+void escape_OP() {
+	if (escaping) {
+		moveAway(escapex, escapey);
+		escapeiteration--;
+		if (escapeiteration <= 0) {
+			escaping = false;
+		}
 	}
 }
 
@@ -467,7 +472,6 @@ void convergeToBase() {
 	attackNearbyEnemies();
 }
 
-
 //   =====================
 //   MY FUNCTIONS END HERE
 //   =====================
@@ -477,12 +481,10 @@ void convergeToBase() {
 // with the testing server...
 void routineFunctions() {
 	broadcastTelemetry_OP();
+	escape_OP();
 }
 
-bool flipperr = true;
-void tactics() {
-	broadcastTelemetry();
-	routineFunctions();
+void tactics() { 
 }
 
 /*************************************************************/

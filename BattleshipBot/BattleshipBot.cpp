@@ -115,12 +115,43 @@ int friendlyFlag = 5005;
 int commanderFlag = 5006;
 int tele_currentship = 0;
 bool tele_operating = false;
+bool tele_reset_operating = false;
+int tele_reset_currentship = 0;
 char friendList[][64] = {"Titan_[Bertolt]", "Titan_[Zeke]"};
+
+// telemetry variables
+int tele_number_of_ships;
+int tele_shipX[MAX_SHIPS];
+int tele_shipY[MAX_SHIPS];
+int tele_shipHealth[MAX_SHIPS];
+int tele_shipFlag[MAX_SHIPS];
 
 
 // what this function does is check if there is qeue to send
 // telemetry data, and if there are, send it one by one... 
 // one will be sent per tick...
+//
+// How the telemetry system will work
+// ===================================
+//
+// The all ships will be synced to a commander ship...
+// The commander ship will basically synchronise all the
+// ships timers by regularly sending a reset command to all
+// ships...
+//
+// When a ship recieves a reset command it will clear all its
+// telemetry data and send out telemetry data to all the other ships
+// Since this happens across all the ships... Each shp will recieve a 
+// new set of telemetry data for all the ally ships... The reset command
+// will be issued every 5 or 10 ticks
+//
+// The telemetry data will be stored in the following variables : 
+//   int tele_number_of_ships;
+//   int tele_shipX[MAX_SHIPS];
+//   int tele_shipY[MAX_SHIPS];
+//   int tele_shipHealth[MAX_SHIPS];
+//   int tele_shipFlag[MAX_SHIPS];
+//
 void broadcastTelemetry_OP() {
 	int friendListSize = sizeof(friendList) / sizeof(*friendList);
 	if (tele_operating) {
@@ -138,13 +169,38 @@ void broadcastTelemetry_OP() {
 	}
 }
 
+// what this function does is broadcast the request of reset the
+// telemetry data and broadcast a fresh set of data...
+void broadcastTelemetryReset_OP() {
+	int friendListSize = sizeof(friendList) / sizeof(*friendList);
+	if (tele_reset_operating) {
+		if (tele_reset_currentship != friendListSize) {
+			char temp_ship[64];
+			strcpy_s(temp_ship, friendList[tele_reset_currentship]);
+			char telemetryData[100];
+			send_message(temp_ship, STUDENT_NUMBER, "RESET_TELEMETRY");
+			tele_reset_currentship++;
+		}
+		else {
+			tele_reset_operating = false;
+			tele_reset_currentship = 0;
+		}
+	}
+}
+
+
 // what this function does is send the status
 // of the ship to all the ships in the friendList array
 // object
 void broadcastTelemetry() {
-
 	if (!tele_operating) {
 		tele_operating = true;
+	}
+}
+
+void broadcastTelemetryReset() {
+	if (!tele_reset_operating) {
+		tele_reset_operating = true;
 	}
 }
 
@@ -194,7 +250,19 @@ void idleRandom() {
 	move_in_direction(left_right, up_down);
 }
 
-// idk what the hell this function does... it was provided in the original code...
+
+// what this function does is retrun a boolean value
+// based on whether or not the string that are passed as parameters
+// match or not
+bool matchString(char* stringA, char* stringB) {
+	if (strcmp(stringA, stringB) != 0) {
+		return false;
+	}
+	else {
+		return true;
+	}
+}
+
 // TODO : Clean up this function...
 void messageReceived(char* msg) {
 	int X;
@@ -205,19 +273,31 @@ void messageReceived(char* msg) {
 
 	if (sscanf_s(msg, "%*s %*s %*s %s", &operation_op, _countof(operation_op)) == 1) {
 		printf("Incoming Message : TOPIC : %s\n", operation_op);
-		if (strcmp(operation_op,"TELEMETRY") == 0) {
+		if (matchString(operation_op, "TELEMETRY")) {
 			if (sscanf_s(msg, "%*s %*s %*s TELEMETRY %d %d %d %d", &X, &Y, &flag, &health) == 4) {
-				printf("Friendly Ship Telemetry Data : \n\tX : %d \n\tY : %d \n\tFlag : %d \n\tHealth : %d\n\n", X, Y, flag, health);
-			} else {
+				printf("Incoming Telemetry Data : \n\tX : %d \n\tY : %d \n\tFlag : %d \n\tHealth : %d\n\n", X, Y, flag, health);
+
+				tele_shipX[tele_number_of_ships] = X;
+				tele_shipY[tele_number_of_ships] = Y;
+				tele_shipFlag[tele_number_of_ships] = flag;
+				tele_shipHealth[tele_number_of_ships] = health;
+				tele_number_of_ships++; 
+
+
+			}
+			else {
 				printf("Failed to parse telemetry data.\n");
 			}
+		} else if (matchString(operation_op, "RESET_TELEMETRY")) {
+			printf("Resetting telemetry data\n");
+			tele_number_of_ships = 0;
+			broadcastTelemetry(); // enable broadcaster...
 		} else {
 			printf("Unknown topic.\n");
 		}
 	} else {
 		printf("Failed to parse message.\n");
 	}
-
 }
 
 // what this function does is move towards a co-ordinate...
@@ -319,6 +399,23 @@ int getWeakestEnemy() {
 		}
 	}
 	return weakest_index;
+}
+
+// what this function does is check if a point is within a circles boundary
+// paramters (pointa_x, pointa_y, pointb_x, pointb_y, radius)
+bool inRadius(int pointa_x, int pointa_y, int pointb_x, int pointb_y, int radius) {
+	int x_set = (pointa_x - pointb_x);
+	x_set = x_set * x_set;
+	int y_set = (pointb_x - pointb_y);
+	y_set = y_set * y_set;
+	int total_set = x_set + y_set;
+	int final_distance = sqrt(total_set);
+
+	if (final_distance < radius) {
+		return true;
+	} else {
+		return false;
+	}
 }
 
 // what this function does is accept an X and Y co-ordinate and
@@ -486,20 +583,18 @@ void convergeToBase() {
 	attackNearbyEnemies();
 }
 
-//   =====================
-//   MY FUNCTIONS END HERE
-//   =====================
-
 // in here are the functions that will be have to be executed
 // on every tick, to make sure that the code is synchronous
 // with the testing server...
 void routineFunctions() {
 	broadcastTelemetry_OP();
+	broadcastTelemetryReset_OP();
 }
 
-void tactics() { 
-	broadcastTelemetry();
-	routineFunctions();
+void tactics() {
+	broadcastTelemetryReset();
+	printf("Number of telemetry records : %d\n", tele_number_of_ships);
+	routineFunctions(); // do not remove this function from the tactics
 }
 
 /*************************************************************/
@@ -651,7 +746,6 @@ int _tmain(int argc, _TCHAR* argv[])
 	printf("\n");
 	printf("Battleship Bots\n");
 	printf("UWE Computer and Network Systems Assignment 2 (2016-17)\n");
-	printf("\n\n");
 	outputHeader();
 
 	if (WSAStartup(MAKEWORD(2, 2), &ws_data) != 0) return(0);

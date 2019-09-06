@@ -204,14 +204,23 @@ void broadcastTelemetryReset() {
 	}
 }
 
+void randomiseFlag() {
+	set_new_flag(rand() % 10 + 1);
+}
+
 // what this function does is accept an index
 // of a ship and determine if the ship is a friendly
 bool IsaFriend(int index) {
 	bool rc;
 	rc = false;
-	if ((shipFlag[index] == friendlyFlag) || (shipFlag[index] == commanderFlag)) {
-		rc = true;
+	//if ((shipFlag[index] == friendlyFlag) || (shipFlag[index] == commanderFlag)) {
+	//	rc = true;
+	//}
+
+	if (index == 0) {
+		return true;
 	}
+
 	return rc;
 }
 
@@ -282,7 +291,6 @@ void messageReceived(char* msg) {
 				tele_shipFlag[tele_number_of_ships] = flag;
 				tele_shipHealth[tele_number_of_ships] = health;
 				tele_number_of_ships++; 
-
 
 			}
 			else {
@@ -406,7 +414,7 @@ int getWeakestEnemy() {
 bool inRadius(int pointa_x, int pointa_y, int pointb_x, int pointb_y, int radius) {
 	int x_set = (pointa_x - pointb_x);
 	x_set = x_set * x_set;
-	int y_set = (pointb_x - pointb_y);
+	int y_set = (pointa_y - pointb_y);
 	y_set = y_set * y_set;
 	int total_set = x_set + y_set;
 	int final_distance = sqrt(total_set);
@@ -537,7 +545,7 @@ int getMasterIndex() {
 int countEnemies() {
 	int enemy_count = 0;
 	for (int i = 0; i < number_of_ships; i++) {
-		if ((shipFlag[i] != friendlyFlag) && (shipFlag[i] != commanderFlag)) {
+		if (!IsaFriend(i)) {
 			enemy_count++;
 		}
 	}
@@ -551,7 +559,7 @@ int getNearestEnemy() {
 	int nearest_value = 99999;
 	for (int i = 1; i < number_of_ships; i++) {
 		int index = i;
-		if ((shipFlag[i] != friendlyFlag) && (shipFlag[i] != commanderFlag)) {
+		if (!IsaFriend(i)) {
 			if (getDistance(index) < nearest_value) {
 				nearest_index = index;
 				nearest_value = getDistance(index);
@@ -565,7 +573,9 @@ int getNearestEnemy() {
 void attackNearbyEnemies() {
 	if (countEnemies() != 0) {
 		int tar_index = getNearestEnemy();
-		fire_at_ship(shipX[tar_index], shipY[tar_index]);
+		if (getDistance(tar_index) < 100) {
+			fire_at_ship(shipX[tar_index], shipY[tar_index]);
+		}
 	}
 }
 
@@ -589,12 +599,50 @@ void convergeToBase() {
 void routineFunctions() {
 	broadcastTelemetry_OP();
 	broadcastTelemetryReset_OP();
+	escape_OP();
 }
 
+void seekAndDestroy() {
+	if (countEnemies() != 0) {
+		int closestEnemy = getNearestEnemy();
+		if (inRadius(myX, myY, shipX[closestEnemy], shipY[closestEnemy], 100)) {
+			printf("Attacking ship...\n");
+			fire_at_ship(shipX[closestEnemy], shipY[closestEnemy]);
+		}
+		else {
+			printf("Closing in...\n");
+		}
+		moveTowards(shipX[closestEnemy], shipY[closestEnemy]);
+	}
+}
+
+bool enemyPresent() {
+	if (countEnemies() > 0) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+
+
 void tactics() {
-	broadcastTelemetryReset();
-	printf("Number of telemetry records : %d\n", tele_number_of_ships);
-	routineFunctions(); // do not remove this function from the tactics
+	//system("CLS");
+	if (enemyPresent()) {
+		seekAndDestroy();
+	}
+	else {
+		patrol_path();
+		//printf("Patrol...\n");
+	}
+	//printf("My flag : %d\n", myFlag);
+	//if (number_of_ships > 1) {
+	//	printf("Enemy Flag : %d\n", shipFlag[1]);
+	//} else {printf("Enemy Flag : N/A\n");}
+	//printf("Number of ships   : %d\n", number_of_ships);
+	//printf("Enemy count       : %d\n", countEnemies());
+	//printf("================================\n");
+	routineFunctions();
 }
 
 /*************************************************************/

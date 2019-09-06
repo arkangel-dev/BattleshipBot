@@ -1,7 +1,0 @@
-Marks_24,  XXX,   XXX,   ,    222,    24,    0
-Hit_Run_,  XXX,   XXX,   ,   -3,    14,    2
-Rand_Hit,  XXX,   XXX,   ,   -139,    8,    1
-Marks_00,  XXX,   XXX,   ,   -334,    0,    0
-Pack_01,  XXX,   XXX,   ,    91,    18,    0
-Pack_02,  XXX,   XXX,   ,    168,    22,    0
-Pack_03,  XXX,   XXX,   ,   -5,    14,    1

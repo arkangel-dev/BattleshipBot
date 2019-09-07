@@ -2,12 +2,15 @@
 //
 
 
+#define _USE_MATH_DEFINES
+
 #include "stdafx.h"
 #include <winsock2.h>
 #include <math.h>
 #include <iostream>
 #include <fstream>
-
+#include <tuple>
+#include <corecrt_math_defines.h>
 
 #pragma comment(lib, "wsock32.lib")
 
@@ -81,6 +84,12 @@ void send_message(char* dest, char* source, char* msg);
 void fire_at_ship(int X, int Y);
 void move_in_direction(int left_right, int up_down);
 void set_new_flag(int newFlag);
+
+// my functions...
+void displayCode(int opcode);
+void shuffleMovement();
+bool isCluster(int index);
+int countShipsInRadius(int xIn, int yIn, int Radius);
 
 
 /*************************************************************/
@@ -198,13 +207,24 @@ void broadcastTelemetry() {
 	}
 }
 
+// what this function does is... bascially this function is
+// a switch... a switch that will turn on the broadcast system
+// and once the broadcast is complete turn it self off...
 void broadcastTelemetryReset() {
 	if (!tele_reset_operating) {
 		tele_reset_operating = true;
 	}
 }
 
-void randomiseFlag() {
+// what this function does is update the
+// ship flag to something that all the ally
+// ships can sync to such as a return value of a function
+// where y = mx + b for and the m and b variables are
+// pre-determined constants and the x value can be
+// a tick counter from every time a telemetry-reset command
+// is issued by the commander ship
+// 
+void updateFlag() {
 	set_new_flag(rand() % 10 + 1);
 }
 
@@ -292,8 +312,7 @@ void messageReceived(char* msg) {
 				tele_shipHealth[tele_number_of_ships] = health;
 				tele_number_of_ships++; 
 
-			}
-			else {
+			} else {
 				printf("Failed to parse telemetry data.\n");
 			}
 		} else if (matchString(operation_op, "RESET_TELEMETRY")) {
@@ -356,7 +375,7 @@ bool inZone(int xloc, int yloc, int offset) {
 // what this function does is move the ship along a pre-determined
 // path along the edge of the map...
 void patrol_path() {
-
+	displayCode(300);
 	int pathways[8][2] = {
 		{100, 100},
 		{450, 400},
@@ -418,7 +437,6 @@ bool inRadius(int pointa_x, int pointa_y, int pointb_x, int pointb_y, int radius
 	y_set = y_set * y_set;
 	int total_set = x_set + y_set;
 	int final_distance = sqrt(total_set);
-
 	if (final_distance < radius) {
 		return true;
 	} else {
@@ -426,31 +444,8 @@ bool inRadius(int pointa_x, int pointa_y, int pointb_x, int pointb_y, int radius
 	}
 }
 
-// what this function does is accept an X and Y co-ordinate and
-// a radius value and return the number of ships in that range...
-int countShipsInRadius(int xIn, int yIn, int Radius) {
-	int returnCount = 0;
-	int maxX = xIn + Radius;
-	int minX = xIn - Radius;
-	int maxY = yIn + Radius;
-	int minY = yIn - Radius;
-	for (int i = 1; i < number_of_ships; i++) {
-		if (((xIn < maxX) && (xIn > minX)) && ((yIn < maxY) && (yIn > minY))) {
-			returnCount++;
-		}
-	}
-	return returnCount;
-}
 
-// what this function does is accept an index of a ship, then use the countShipsInRadius()
-// function and determine if a ship is a part of a cluster...
-bool isCluster(int index) {
-	if (countShipsInRadius(shipX[index], shipY[index], 10) > 2) {
-		return true;
-	} else {
-		return false;
-	}
-}
+
 
 // what this function does is initilise the escape variables
 // so that the escape() function will start to "escape"
@@ -498,10 +493,12 @@ bool matchcode(int opcode, int matchcode) {
 // what this function does is print the status code whenever
 // its appropriate...
 void displayCode(int opcode) {
-	if (matchcode(opcode, 100)) { printf("[100] Engaging with ship...\n"); }
+	if (matchcode(opcode, 100)) {printf("[100] Engaging with ship...\n");}
+	else if (matchcode(opcode, 101)) {printf("[101] Closing in on enemy ship...\n");}
+	else if (matchcode(opcode, 102)) {printf("[102] Attacking ship...\n");}
 	else if (matchcode(opcode, 200)) {printf("[200] Cluster Detected...\n");}
+	else if (matchcode(opcode, 201)) {printf("[201] Escaping cluster...\n"); }
 	else if (matchcode(opcode, 300)) {printf("[300] Running routine patrol...\n");}
-	else if (matchcode(opcode, 400)) {printf("[400] Escaping cluster...\n");}
 	else if (matchcode(opcode, 500)) {printf("[500] Engine failed...\n");}
 	else if (matchcode(opcode, 600)) {printf("[600] Saw a friendly...\n");}
 	else if (matchcode(opcode, 700)) {printf("[700] Waiting for master...\n");}
@@ -602,20 +599,73 @@ void routineFunctions() {
 	escape_OP();
 }
 
-void seekAndDestroy() {
-	if (countEnemies() != 0) {
-		int closestEnemy = getNearestEnemy();
-		if (inRadius(myX, myY, shipX[closestEnemy], shipY[closestEnemy], 100)) {
-			printf("Attacking ship...\n");
-			fire_at_ship(shipX[closestEnemy], shipY[closestEnemy]);
-		}
-		else {
-			printf("Closing in...\n");
-		}
-		moveTowards(shipX[closestEnemy], shipY[closestEnemy]);
+
+bool evadeClusters = true;
+int clusterDefinitionCount = 3;
+int clusterDefinitionRadius = 25;
+
+// what this function does is accept an index of a ship, then use the countShipsInRadius()
+// function and determine if a ship is a part of a cluster...
+bool isCluster(int index) {
+	if (countShipsInRadius(shipX[index], shipY[index], clusterDefinitionRadius) >= clusterDefinitionCount) {
+		return true;
+	}
+	else {
+		return false;
 	}
 }
 
+
+// what this function does is accept an X and Y co-ordinate and
+// a radius value and return the number of ships in that range...
+int countShipsInRadius(int xIn, int yIn, int Radius) {
+	int returnCount = 0;
+	for (int i = 1; i < number_of_ships; i++) {
+		if (inRadius(xIn, yIn, shipX[i], shipY[i], Radius)) {
+			returnCount++;
+		}
+	}
+	return returnCount;
+}
+
+// what this function does is move to towards the nearest ship and destroy
+// it... Its bascically the old attack tactic put into a function...
+void seekAndDestroy() {
+	if (countEnemies() != 0) {
+		int closestEnemy = getNearestEnemy();
+		if (!isCluster(closestEnemy)) {
+			if (inRadius(myX, myY, shipX[closestEnemy], shipY[closestEnemy], 100)) {
+				displayCode(102);
+				fire_at_ship(shipX[closestEnemy], shipY[closestEnemy]);
+				if (inRadius(myX, myY, shipX[closestEnemy], shipY[closestEnemy], 90)) {
+					shuffleMovement();
+				} else {
+					moveTowards(shipX[closestEnemy], shipY[closestEnemy]);
+				}
+			} else {
+				displayCode(101);
+				moveTowards(shipX[closestEnemy], shipY[closestEnemy]);
+			}
+		} else {
+			displayCode(201);
+			escapeFrom(shipX[closestEnemy], shipY[closestEnemy], 10);
+		}
+	}
+}
+
+// what this function does is rotate a point around an origin at a specified degree counter clockwise...
+tuple<int, int> rotateAroundOrigin(int originX, int originY, int pointX, int pointY, int angle) {
+	double radians = (angle) * (M_PI / 180);
+	double rotateX = cos(radians) * (pointX - originX) - sin(radians) * (pointX - originX) + originX;
+	double rotateY = sin(radians) * (pointX - originX) + cos(radians) * (pointY - originY) + originY;
+	return make_tuple((int)rotateX, (int)rotateY);
+}
+
+
+// what this function does it return a boolean
+// valued based on whether or not there are any enemies present...
+// NOTE: Uses the flags to determine if the ship is a 
+// ally or not...
 bool enemyPresent() {
 	if (countEnemies() > 0) {
 		return true;
@@ -624,24 +674,23 @@ bool enemyPresent() {
 	}
 }
 
-
+// what this function does is move the ship on a 3x3 grid
+// so what reduces the changes of an enemy shell hitting our
+// ship from absolute certainity to (1/9)...
+void shuffleMovement() {
+	int movex = (rand() % 3 + 1) - 2;
+	int movey = (rand() % 3 + 1) - 2;
+	move_in_direction(movex, movey);
+}
 
 void tactics() {
-	//system("CLS");
+	
 	if (enemyPresent()) {
 		seekAndDestroy();
 	}
 	else {
 		patrol_path();
-		//printf("Patrol...\n");
 	}
-	//printf("My flag : %d\n", myFlag);
-	//if (number_of_ships > 1) {
-	//	printf("Enemy Flag : %d\n", shipFlag[1]);
-	//} else {printf("Enemy Flag : N/A\n");}
-	//printf("Number of ships   : %d\n", number_of_ships);
-	//printf("Enemy count       : %d\n", countEnemies());
-	//printf("================================\n");
 	routineFunctions();
 }
 

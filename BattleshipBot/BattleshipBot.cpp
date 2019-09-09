@@ -24,7 +24,7 @@
 #define MY_SHIP	SHIPTYPE_BATTLESHIP
 
 //#define IP_ADDRESS_SERVER	"127.0.0.1"
-#define IP_ADDRESS_SERVER "127.0.0.1"
+#define IP_ADDRESS_SERVER "169.254.12.172"
 
 #define PORT_SEND	 1924 // We define a port that we are going to use.
 #define PORT_RECEIVE 1925 // We define a port that we are going to use.
@@ -90,6 +90,7 @@ void displayCode(int opcode);
 void shuffleMovement();
 bool isCluster(int index);
 int countShipsInRadius(int xIn, int yIn, int Radius);
+tuple<int, int> rotateAroundOrigin(int originX, int originY, int pointX, int pointY, int angle);
 
 
 /*************************************************************/
@@ -457,8 +458,10 @@ int escapeiteration;
 // This function is used to trigger the escape sequence...
 void escapeFrom(int xin, int yin, int iterations) {
 	escaping = true;
-	escapex = xin;
-	escapey = yin;
+	int tang_x, tang_y;
+	tie(tang_x, tang_y) = rotateAroundOrigin(myX, myY, xin, yin, 90);
+	escapex = tang_x;
+	escapey = tang_y;
 	escapeiteration = iterations;
 }
 
@@ -467,6 +470,7 @@ void escapeFrom(int xin, int yin, int iterations) {
 void escape_OP() {
 	if (escaping) {
 		moveAway(escapex, escapey);
+		//moveTowards(tang_x, tang_y);
 		escapeiteration--;
 		if (escapeiteration <= 0) {
 			escaping = false;
@@ -653,15 +657,6 @@ void seekAndDestroy() {
 	}
 }
 
-// what this function does is rotate a point around an origin at a specified degree counter clockwise...
-tuple<int, int> rotateAroundOrigin(int originX, int originY, int pointX, int pointY, int angle) {
-	double radians = (angle) * (M_PI / 180);
-	double rotateX = cos(radians) * (pointX - originX) - sin(radians) * (pointX - originX) + originX;
-	double rotateY = sin(radians) * (pointX - originX) + cos(radians) * (pointY - originY) + originY;
-	return make_tuple((int)rotateX, (int)rotateY);
-}
-
-
 // what this function does it return a boolean
 // valued based on whether or not there are any enemies present...
 // NOTE: Uses the flags to determine if the ship is a 
@@ -683,8 +678,20 @@ void shuffleMovement() {
 	move_in_direction(movex, movey);
 }
 
+//p'x = cos(theta) * (px-ox) - sin(theta) * (py-oy) + ox
+//p'y = sin(theta) * (px-ox) + cos(theta) * (py-oy) + oy
+// what this function does is rotate a point around an origin at a specified degree counter clockwise...
+tuple<int, int> rotateAroundOrigin(int originX, int originY, int pointX, int pointY, int angle) {
+	angle = (angle) * (M_PI / 180);
+
+	int rotateX = cos(angle) * (pointX - originX) - sin(angle) * (pointY - originY) + originY;
+	int rotateY = sin(angle) * (pointX - originX) + cos(angle) * (pointY - originY) + originY;
+
+	return make_tuple((int)rotateX, (int)rotateY);
+}
+
 void tactics() {
-	
+
 	if (enemyPresent()) {
 		seekAndDestroy();
 	}
@@ -692,6 +699,7 @@ void tactics() {
 		patrol_path();
 	}
 	routineFunctions();
+
 }
 
 /*************************************************************/

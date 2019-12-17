@@ -1,6 +1,9 @@
 # uwe-battleship-bots
 This the battleships bot that was provided by UWE for the BSc (Hons) Computer Science program. This is also the same one given by Villa College.
 
+# New Version
+New version of battle ship bots written by me in Python: https://github.com/arkangel-dev/BattleShipPy
+
 ## Important notes
 These are some important notes on the game mechanics of the server.
 
